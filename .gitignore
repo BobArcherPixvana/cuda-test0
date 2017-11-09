@@ -1,0 +1,26 @@
+.DS_Store
+
+# Visual Studio
+*.opensdf
+*.sdf
+*.suo
+*.user
+*.ilk
+*.pdb
+*.idb
+*.lastbuildstate
+*.tlog
+*.log
+*.db
+*.opendb
+*.ipch
+*.exe
+*.dll
+build/vs2017/.vs
+
+*.cache
+*.obj
+*.deps
+
+log.txt
+
