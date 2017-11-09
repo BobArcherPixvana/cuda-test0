@@ -68,15 +68,24 @@ void writeResult(cudaError_t result, std::string const& description)
 }
 }
 
-__global__ void testKernel(float input, bool flip, float* pOutput)
+class Float2
+{
+public:
+    float x;
+    float y;
+};
+
+__global__ void testKernel(Float2 input, bool flip, Float2* pOutput)
 {
     int const i(blockIdx.x * blockDim.x + threadIdx.x);
     // printf("a");
 
+    pOutput->x = input.x;
+
     if(i == 0)
     {
         // printf("b");
-        *pOutput = flip ? 1.0 - input : input;
+        pOutput->y = flip ? 1.0 - input.y : input.y;
     }
 }
 
@@ -94,32 +103,42 @@ int main(int argc, char* argv[])
         int const numBlocks(1);
         int const numThreadsPerThreadBlock(10);
 
-        float* pInput;
-        cudaMallocManaged(&pInput, sizeof(float));
+        Float2* pInput;
+        cudaMallocManaged(&pInput, sizeof(Float2));
 
-        float* pOutput;
-        cudaMallocManaged(&pOutput, sizeof(float));
+        Float2* pOutput;
+        cudaMallocManaged(&pOutput, sizeof(Float2));
 
         bool* pFlip;
         cudaMallocManaged(&pFlip, sizeof(bool));
 
-        *pInput = 0.75;
-        *pOutput = -1000000.0;
+        pInput->x = 0.1;
+        pInput->y = 0.2;
+
+        pOutput->x = -10.0;
+        pOutput->x = -20.0;
         {
             *pFlip = false;
+            LOG("Flip = " << *pFlip << "\n");
             testKernel<<<numBlocks, numThreadsPerThreadBlock>>>(*pInput, *pFlip, pOutput);
             cudaDeviceSynchronize();
 
-            INSPECT(*pInput);
-            INSPECT(*pOutput);
+            INSPECT(pInput->x);
+            INSPECT(pInput->y);
+            INSPECT(pOutput->x);
+            INSPECT(pOutput->y);
         }
+
         {
             *pFlip = true;
+            LOG("Flip = " << *pFlip << "\n");
             testKernel<<<numBlocks, numThreadsPerThreadBlock>>>(*pInput, *pFlip, pOutput);
             cudaDeviceSynchronize();
 
-            INSPECT(*pInput);
-            INSPECT(*pOutput);
+            INSPECT(pInput->x);
+            INSPECT(pInput->y);
+            INSPECT(pOutput->x);
+            INSPECT(pOutput->y);
         }
     }
     catch(...)
