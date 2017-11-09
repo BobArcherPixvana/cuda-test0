@@ -68,15 +68,15 @@ void writeResult(cudaError_t result, std::string const& description)
 }
 }
 
-__global__ void testKernel(int input, bool flip, int* pOutput)
+__global__ void testKernel(float input, bool flip, float* pOutput)
 {
     int const i(blockIdx.x * blockDim.x + threadIdx.x);
-    printf("a");
+    // printf("a");
 
     if(i == 0)
     {
-        printf("b");
-        *pOutput = flip ? 1 - input : input;
+        // printf("b");
+        *pOutput = flip ? 1.0 - input : input;
     }
 }
 
@@ -89,71 +89,38 @@ int main(int argc, char* argv[])
 
     try
     {
-        std::ofstream ostr(logFile, std::ios::trunc);
-        ostr.close();
-
-        size_t nBytes(1000000000);
-
-        if(argc > 1)
-        {
-            nBytes = atol(argv[1]);
-        }
-
-        std::cout << format(nBytes) << " bytes\n\n";
-
-        LOG(format(nBytes) << " bytes\n\n");
-
-        unsigned char* src;
-        unsigned char* dest;
-
         cudaError_t rc(cudaSuccess);
 
-        // Allocate Unified Memory – accessible from CPU or GPU
-        rc = cudaMallocManaged(&src, nBytes);
-        writeResult(rc, "cudaMallocManaged");
-
-        rc = cudaMallocManaged(&dest, nBytes);
-        writeResult(rc, "cudaMallocManaged");
-        /*
-        // initialize x and y arrays on the host
-        for(size_t i(0); i < nBytes; ++i)
-        {
-            src[i] = i % 256;
-            dest[i] = 0;
-        }
-*/
         int const numBlocks(1);
         int const numThreadsPerThreadBlock(10);
 
-        int* pInput;
-        cudaMallocManaged(&pInput, sizeof(int));
+        float* pInput;
+        cudaMallocManaged(&pInput, sizeof(float));
 
-        int* pOutput;
-        cudaMallocManaged(&pOutput, sizeof(int));
+        float* pOutput;
+        cudaMallocManaged(&pOutput, sizeof(float));
 
         bool* pFlip;
         cudaMallocManaged(&pFlip, sizeof(bool));
 
-        *pInput = 17;
-        *pOutput = -1000000;
+        *pInput = 0.75;
+        *pOutput = -1000000.0;
+        {
+            *pFlip = false;
+            testKernel<<<numBlocks, numThreadsPerThreadBlock>>>(*pInput, *pFlip, pOutput);
+            cudaDeviceSynchronize();
 
-        *pFlip = false;
-        testKernel<<<numBlocks, numThreadsPerThreadBlock>>>(*pInput, *pFlip, pOutput);
-        LOG("Start synchronize\n");
-        cudaDeviceSynchronize();
-        LOG("Finish synchronize\n");
+            INSPECT(*pInput);
+            INSPECT(*pOutput);
+        }
+        {
+            *pFlip = true;
+            testKernel<<<numBlocks, numThreadsPerThreadBlock>>>(*pInput, *pFlip, pOutput);
+            cudaDeviceSynchronize();
 
-        INSPECT(*pInput);
-        INSPECT(*pOutput);
-
-        *pFlip = true;
-        testKernel<<<numBlocks, numThreadsPerThreadBlock>>>(*pInput, *pFlip, pOutput);
-        LOG("Start synchronize\n");
-        cudaDeviceSynchronize();
-        LOG("Finish synchronize\n");
-
-        INSPECT(*pInput);
-        INSPECT(*pOutput);
+            INSPECT(*pInput);
+            INSPECT(*pOutput);
+        }
     }
     catch(...)
     {
