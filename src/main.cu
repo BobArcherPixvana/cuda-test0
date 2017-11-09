@@ -75,17 +75,38 @@ public:
     float y;
 };
 
+__device__ Float2 flipY(Float2 const& xy, bool doFlip)
+{
+    Float2 result;
+    result.x = xy.x;
+    result.y = doFlip ? 1.0 - xy.y : xy.y;
+    return result;
+}
+
 __global__ void testKernel(Float2 input, bool flip, Float2* pOutput)
 {
     int const i(blockIdx.x * blockDim.x + threadIdx.x);
     // printf("a");
 
-    pOutput->x = input.x;
-
     if(i == 0)
     {
-        // printf("b");
-        pOutput->y = flip ? 1.0 - input.y : input.y;
+        Float2 local;
+        local.x = 0.1;
+        local.y = 0.2;
+
+        *pOutput = flipY(local, flip);
+    }
+}
+
+void passFail(float expected, float actual)
+{
+    if(abs(expected - actual) < 0.0001)
+    {
+        std::cout << "Pass\n";
+    }
+    else
+    {
+        std::cout << "FAIL\n";
     }
 }
 
@@ -93,15 +114,10 @@ int main(int argc, char* argv[])
 {
     std::cout << "cuda-test0\n\n";
 
-    std::chrono::high_resolution_clock::time_point startTime(
-        std::chrono::high_resolution_clock::now());
-
     try
     {
-        cudaError_t rc(cudaSuccess);
-
         int const numBlocks(1);
-        int const numThreadsPerThreadBlock(10);
+        int const numThreadsPerThreadBlock(1);
 
         Float2* pInput;
         cudaMallocManaged(&pInput, sizeof(Float2));
@@ -112,7 +128,7 @@ int main(int argc, char* argv[])
         bool* pFlip;
         cudaMallocManaged(&pFlip, sizeof(bool));
 
-        pInput->x = 0.1;
+        pInput->x = 50.1;
         pInput->y = 0.2;
 
         pOutput->x = -10.0;
@@ -127,8 +143,12 @@ int main(int argc, char* argv[])
             INSPECT(pInput->y);
             INSPECT(pOutput->x);
             INSPECT(pOutput->y);
+
+            passFail(0.2, pOutput->y);
         }
 
+        std::cout << "\n";
+        
         {
             *pFlip = true;
             LOG("Flip = " << *pFlip << "\n");
@@ -139,17 +159,13 @@ int main(int argc, char* argv[])
             INSPECT(pInput->y);
             INSPECT(pOutput->x);
             INSPECT(pOutput->y);
+            passFail(0.8, pOutput->y);
         }
     }
     catch(...)
     {
         std::cout << "Caught exception\n";
     }
-
-    std::cout << std::fixed << std::setprecision(9);
-    std::cout << std::chrono::duration_cast<std::chrono::duration<double>>(
-                     std::chrono::high_resolution_clock::now() - startTime)
-                     .count();
 
     return 0;
 }
